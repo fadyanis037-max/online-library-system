@@ -34,43 +34,63 @@ online-library-system/
 
 ## Setup
 
-### 1) Create and activate a virtual environment (recommended)
+### 1) Create and activate a virtual environment (Windows PowerShell)
 
-```bash
-python -m venv .venv
-. .venv/bin/activate   # Windows PowerShell: .venv\\Scripts\\Activate.ps1
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
 
 ### 2) Install dependencies
 
-```bash
+```powershell
+python -m pip install -U pip setuptools wheel
 pip install -r backend/requirements.txt
+```
+
+If PyTorch fails to install automatically (CPU-only fallback):
+
+```powershell
+pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
 
 Note: First run will download large models for Transformers and Sentence-Transformers.
 
-### 3) Run the backend
+### 3) Run the backend (as a module)
 
-```bash
-python backend/app.py
+```powershell
+python -m backend.app
 ```
 
 - API base: `http://localhost:5000`
 - Health check: `GET /health`
 
-Seed the database (optional, recommended):
+Seed the database (optional, recommended; run in a new shell if backend is running):
 
-```bash
-python backend/seed_data.py
+```powershell
+python -m backend.seed_data
 ```
 
 ### 4) Run the Streamlit UI
 
-```bash
+```powershell
 streamlit run app_ui.py
 ```
 
-- Set `BACKEND_URL` env var if backend not on default URL.
+- If backend is not on `http://localhost:5000`, set `BACKEND_URL`:
+
+```powershell
+$env:BACKEND_URL = "http://localhost:5000"
+streamlit run app_ui.py
+```
+
+### Freeing occupied ports (optional)
+- Check and kill processes on ports 5000/8501 if needed:
+
+```powershell
+Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+Get-NetTCPConnection -LocalPort 8501 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+```
 
 ## API Overview
 

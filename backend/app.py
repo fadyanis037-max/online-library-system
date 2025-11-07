@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
-
+from config import config 
 from backend.config import config
 from backend.models import db
 from backend.routes import api_bp
