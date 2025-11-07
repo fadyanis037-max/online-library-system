@@ -1,4 +1,7 @@
-title,author,genre,summary,total_copies,available_copies
-The Hound of the Baskervilles,Arthur Conan Doyle,Mystery,"Sherlock Holmes investigates a murder linked to a legendary hound on the moors.",5,5
-Pride and Prejudice,Jane Austen,Romance,"Elizabeth Bennet navigates society, family, and her evolving feelings for Mr. Darcy.",4,4
-1984,George Orwell,Dystopian,"Winston Smith grapples with surveillance, truth, and resistance in a totalitarian state.",6,6
+title,author,genre,description,content
+The Time Machine,H. G. Wells,Science Fiction,"A Victorian scientist travels through time to witness humanity's future.","The Time Traveller (for so it will be convenient to speak of him) was expounding a recondite matter to us..."
+Pride and Prejudice,Jane Austen,Romance,"A classic tale of love and misunderstandings between Elizabeth Bennet and Mr. Darcy.","It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife."
+Moby Dick,Herman Melville,Adventure,"The obsessive quest of Ahab for revenge on the white whale.","Call me Ishmael. Some years ago—never mind how long precisely..."
+Frankenstein,Mary Shelley,Horror,"A scientist creates a sentient creature, facing dire consequences.","You will rejoice to hear that no disaster has accompanied the commencement of an enterprise which you have regarded with such evil forebodings."
+The Great Gatsby,F. Scott Fitzgerald,Classics,"A story of wealth, love, and the American Dream in the Jazz Age.","In my younger and more vulnerable years my father gave me some advice that I've been turning over in my mind ever since."
+

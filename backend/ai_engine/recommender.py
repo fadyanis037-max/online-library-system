@@ -1,41 +1,32 @@
-"""Book recommendation using Sentence-Transformers similarity.
+from typing import List, Tuple
 
-Embeds available book summaries and returns the best match for a query.
-"""
-
-from typing import Dict
-
-from sentence_transformers import SentenceTransformer, util
-
-from models import Book
-
-_model = None  # lazy singleton
+import numpy as np
+from sentence_transformers import SentenceTransformer
+from functools import lru_cache
 
 
-def _get_model():
-    global _model
-    if _model is None:
-        _model = SentenceTransformer("all-MiniLM-L6-v2")
-    return _model
+@lru_cache(maxsize=1)
+def get_embedding_model() -> SentenceTransformer:
+    return SentenceTransformer("all-MiniLM-L6-v2")
 
 
-def recommend_books(query: str) -> Dict:
-    if not query or not query.strip():
-        raise ValueError("Empty query provided for recommendation")
+def embed_texts(texts: List[str]) -> np.ndarray:
+    model = get_embedding_model()
+    return np.array(model.encode(texts, normalize_embeddings=True))
 
-    books = Book.query.all()
-    candidates = [(b, b.summary) for b in books if b.summary]
-    if not candidates:
-        return {"recommended_book": None, "reason": "No summaries available"}
 
-    # Embed corpus and query
-    model = _get_model()
-    summaries = [summary for _, summary in candidates]
-    corpus_embeddings = model.encode(summaries, convert_to_tensor=True)
-    query_embedding = model.encode(query, convert_to_tensor=True)
+def cosine_similarities(query_vec: np.ndarray, matrix: np.ndarray) -> np.ndarray:
+    return np.dot(matrix, query_vec)
 
-    scores = util.pytorch_cos_sim(query_embedding, corpus_embeddings)[0]
-    best_idx = int(scores.argmax().item())
-    best_book = candidates[best_idx][0]
-    return {"recommended_book": best_book.title, "book_id": best_book.id}
+
+def top_k_similar(query_text: str, corpus_texts: List[str], top_k: int = 5) -> List[Tuple[int, float]]:
+    if not corpus_texts:
+        return []
+    model = get_embedding_model()
+    query_vec = model.encode([query_text], normalize_embeddings=True)[0]
+    corpus_vecs = embed_texts(corpus_texts)
+    scores = cosine_similarities(query_vec, corpus_vecs)
+    top_idx = np.argsort(-scores)[:top_k]
+    return [(int(i), float(scores[i])) for i in top_idx]
+
 

@@ -1,28 +1,35 @@
-"""Text summarization with a BART model via transformers.
-
-The first call may download model weights. To avoid import-time overhead,
-the pipeline is instantiated lazily on first use.
-"""
-
+from functools import lru_cache
 from typing import Optional
 
 from transformers import pipeline
 
-_summarizer = None  # lazy singleton
+
+@lru_cache(maxsize=1)
+def get_bart_summarizer():
+    # Lazy-loads and caches the summarization pipeline
+    return pipeline(
+        task="summarization",
+        model="facebook/bart-large-cnn",
+        tokenizer="facebook/bart-large-cnn",
+    )
 
 
-def _get_pipeline():
-    global _summarizer
-    if _summarizer is None:
-        _summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-    return _summarizer
-
-
-def summarize_text(text: str, max_length: int = 120, min_length: int = 30) -> str:
-    """Summarize input text and return the summary string."""
+def summarize_text(text: str, max_length: int = 130, min_length: int = 30) -> Optional[str]:
     if not text or not text.strip():
-        raise ValueError("Empty text provided for summarization")
-    summarizer = _get_pipeline()
-    result = summarizer(text, max_length=max_length, min_length=min_length, do_sample=False)
-    return result[0]["summary_text"]
+        return None
+    summarizer = get_bart_summarizer()
+    # BART has a max token/length limit; pipeline handles chunking poorly, so truncate input
+    input_text = text.strip()
+    if len(input_text) > 4000:
+        input_text = input_text[:4000]
+    result = summarizer(
+        input_text,
+        max_length=max_length,
+        min_length=min_length,
+        do_sample=False,
+    )
+    if not result:
+        return None
+    return result[0].get("summary_text")
+
 

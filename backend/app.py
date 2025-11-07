@@ -1,80 +1,34 @@
-"""Flask app entry point for the Online Library backend.
-
-Run locally:
-  cd backend
-  python -m venv .venv && .venv/Scripts/activate  # or source .venv/bin/activate (Unix)
-  pip install -r requirements.txt
-  set FLASK_APP=app.py  # on Windows PowerShell: $env:FLASK_APP = "app.py"
-  flask db init && flask db migrate -m "init" && flask db upgrade
-  flask seed-books  # optional: load initial dataset
-  flask run
-"""
-
-import csv
-import os
-from pathlib import Path
-
-from dotenv import load_dotenv
-from flask import Flask, jsonify
+from flask import Flask
 from flask_cors import CORS
-from flask_migrate import Migrate
 
-from config import get_config
-from models import db, Book
-from routes import register_blueprints
+from backend.config import config
+from backend.models import db
+from backend.routes import api_bp
 
 
-def create_app() -> Flask:
-    load_dotenv()
+def create_app():
     app = Flask(__name__)
-    app.config.from_object(get_config())
-
-    # Extensions
-    db.init_app(app)
-    Migrate(app, db)
+    app.config.from_object(config)
     CORS(app)
 
-    # Routes
-    register_blueprints(app)
+    db.init_app(app)
 
-    @app.get("/api/health")
+    # Register blueprints (lazy import to prevent circular deps)
+    from backend.routes.books import books_bp
+    app.register_blueprint(books_bp, url_prefix=f"{api_bp.url_prefix}/books")
+
+    @app.route('/health')
     def health():
-        return jsonify({"status": "ok"})
+        return {"status": "ok"}
 
-    # CLI command to seed initial books
-    @app.cli.command("seed-books")
-    def seed_books_cmd():
-        """Load books from data/seed_books.csv into the database."""
-        with app.app_context():
-            data_path = Path(__file__).parent / "data" / "seed_books.csv"
-            if not data_path.exists():
-                print(f"Seed file not found: {data_path}")
-                return
-            added = 0
-            with open(data_path, newline="", encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    if not row.get("title") or not row.get("author"):
-                        continue
-                    # Avoid duplicates by title+author
-                    exists = Book.query.filter_by(title=row["title"], author=row["author"]).first()
-                    if exists:
-                        continue
-                    book = Book(
-                        title=row["title"],
-                        author=row["author"],
-                        genre=row.get("genre"),
-                        summary=row.get("summary"),
-                        total_copies=int(row.get("total_copies", 1) or 1),
-                        available_copies=int(row.get("available_copies", 1) or 1),
-                    )
-                    db.session.add(book)
-                    added += 1
-                db.session.commit()
-            print(f"Seeded {added} books.")
+    with app.app_context():
+        db.create_all()
 
     return app
 
 
-app = create_app()
+if __name__ == '__main__':
+    app = create_app()
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
 

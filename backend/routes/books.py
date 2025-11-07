@@ -1,119 +1,122 @@
 from flask import Blueprint, jsonify, request
-from sqlalchemy import or_
 
-from models import db, Book
-
-
-bp = Blueprint("books", __name__, url_prefix="/api/books")
+from backend.models import db, Book
+from backend.ai_engine.summarizer import summarize_text
+from backend.ai_engine.recommender import top_k_similar
 
 
-@bp.get("/")
+books_bp = Blueprint('books', __name__)
+
+
+def serialize_book(book: Book):
+    return {
+        "id": book.id,
+        "title": book.title,
+        "author": book.author,
+        "genre": book.genre,
+        "description": book.description,
+        "created_at": book.created_at.isoformat() if book.created_at else None,
+    }
+
+
+@books_bp.get('/')
 def list_books():
-    """Return all books. Optional search via ?q=term."""
-    q = request.args.get("q")
     query = Book.query
-    if q:
-        like = f"%{q}%"
-        query = query.filter(or_(Book.title.ilike(like), Book.author.ilike(like), Book.genre.ilike(like)))
-    books = [b.to_dict() for b in query.order_by(Book.title.asc()).all()]
-    return jsonify({"items": books, "count": len(books)})
+    search = request.args.get('q')
+    if search:
+        like = f"%{search}%"
+        query = query.filter(
+            db.or_(
+                Book.title.ilike(like),
+                Book.author.ilike(like),
+                Book.genre.ilike(like),
+                Book.description.ilike(like),
+            )
+        )
+    books = query.order_by(Book.created_at.desc()).all()
+    return jsonify([serialize_book(b) for b in books])
 
 
-@bp.get("/<int:book_id>")
+@books_bp.get('/<int:book_id>')
 def get_book(book_id: int):
     book = Book.query.get_or_404(book_id)
-    return jsonify(book.to_dict())
+    return jsonify(serialize_book(book))
 
 
-@bp.post("/")
+@books_bp.post('/')
 def create_book():
-    """Create a new book entry."""
-    data = request.get_json(force=True) or {}
-    required = ["title", "author"]
-    if not all(k in data and data[k] for k in required):
-        return jsonify({"error": "Missing required fields: title, author"}), 400
-
+    data = request.get_json(force=True)
+    title = data.get('title')
+    author = data.get('author')
+    if not title or not author:
+        return jsonify({"error": "'title' and 'author' are required"}), 400
     book = Book(
-        title=data["title"],
-        author=data["author"],
-        genre=data.get("genre"),
-        summary=data.get("summary"),
-        ai_summary=data.get("ai_summary"),
-        available_copies=int(data.get("available_copies", 1)),
-        total_copies=int(data.get("total_copies", 1)),
+        title=title,
+        author=author,
+        genre=data.get('genre'),
+        description=data.get('description'),
+        content=data.get('content'),
     )
     db.session.add(book)
     db.session.commit()
-    return jsonify(book.to_dict()), 201
+    return jsonify(serialize_book(book)), 201
 
 
-@bp.post("/summarize")
-def summarize_endpoint():
-    """Summarize provided text or a book's summary.
-
-    Body: {"text": "..."} OR {"book_id": 1}
-    """
-    payload = request.get_json(force=True) or {}
-    text = payload.get("text")
-    book_id = payload.get("book_id")
-
-    if not text and not book_id:
-        return jsonify({"error": "Provide 'text' or 'book_id'"}), 400
-
-    if not text and book_id:
-        book = Book.query.get_or_404(book_id)
-        if not book.summary:
-            return jsonify({"error": "Book has no summary to summarize"}), 400
-        text = book.summary
-
-    try:
-        # Lazy import to avoid hard dependency at app startup
-        from ai_engine.summarizer import summarize_text  # type: ignore
-
-        result = summarize_text(text)
-    except ImportError:
-        return (
-            jsonify({
-                "error": "Summarization unavailable: install transformers/sentence-transformers/torch.",
-            }),
-            501,
-        )
-    except Exception as exc:  # model may need download on first run
-        return jsonify({"error": f"Summarization failed: {exc}"}), 500
-
-    # Optionally persist if book_id provided
-    if book_id:
-        book = Book.query.get(book_id)
-        if book:
-            book.ai_summary = result
-            db.session.commit()
-
-    return jsonify({"summary": result})
+@books_bp.put('/<int:book_id>')
+def update_book(book_id: int):
+    book = Book.query.get_or_404(book_id)
+    data = request.get_json(force=True)
+    for field in ['title', 'author', 'genre', 'description', 'content']:
+        if field in data:
+            setattr(book, field, data[field])
+    db.session.commit()
+    return jsonify(serialize_book(book))
 
 
-@bp.post("/recommend")
-def recommend_endpoint():
-    """Recommend a book based on a user query.
+@books_bp.delete('/<int:book_id>')
+def delete_book(book_id: int):
+    book = Book.query.get_or_404(book_id)
+    db.session.delete(book)
+    db.session.commit()
+    return jsonify({"status": "deleted", "id": book_id})
 
-    Body: {"query": "mystery detective"}
-    """
-    payload = request.get_json(force=True) or {}
-    query = payload.get("query")
-    if not query:
-        return jsonify({"error": "Missing 'query'"}), 400
-    try:
-        # Lazy import to avoid hard dependency at app startup
-        from ai_engine.recommender import recommend_books  # type: ignore
 
-        rec = recommend_books(query)
-    except ImportError:
-        return (
-            jsonify({
-                "error": "Recommendation unavailable: install sentence-transformers/torch.",
-            }),
-            501,
-        )
-    except Exception as exc:
-        return jsonify({"error": f"Recommendation failed: {exc}"}), 500
-    return jsonify(rec)
+@books_bp.post('/<int:book_id>/summarize')
+def summarize_book(book_id: int):
+    book = Book.query.get_or_404(book_id)
+    source = book.content or book.description
+    if not source:
+        return jsonify({"error": "No content or description to summarize"}), 400
+    params = request.get_json(silent=True) or {}
+    max_length = int(params.get('max_length', 130))
+    min_length = int(params.get('min_length', 30))
+    summary = summarize_text(source, max_length=max_length, min_length=min_length)
+    if not summary:
+        return jsonify({"error": "Summarization failed"}), 500
+    return jsonify({"book_id": book_id, "summary": summary})
+
+
+@books_bp.get('/<int:book_id>/recommendations')
+def recommend_books(book_id: int):
+    book = Book.query.get_or_404(book_id)
+    target_text = (book.description or '') + '\n' + (book.content or '')
+    if not target_text.strip():
+        return jsonify({"error": "No text available for recommendations"}), 400
+
+    other_books = Book.query.filter(Book.id != book_id).all()
+    corpus = [((b.description or '') + '\n' + (b.content or '')).strip() for b in other_books]
+    top_k = int(request.args.get('top_k', 5))
+
+    ranking = top_k_similar(target_text, corpus, top_k=top_k)
+
+    # Map indices back to book ids
+    results = []
+    for idx, score in ranking:
+        b = other_books[idx]
+        payload = serialize_book(b)
+        payload["score"] = score
+        results.append(payload)
+
+    return jsonify({"book_id": book_id, "recommendations": results})
+
 
