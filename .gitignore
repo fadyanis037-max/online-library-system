@@ -1,0 +1,19 @@
+﻿# Python
+backend/.venv/
+**/__pycache__/
+*.pyc
+.env
+
+# Node
+frontend/node_modules/
+frontend/.env
+
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Data
+backend/library.db
+backend/migrations/versions/__pycache__/
+backend/ai_engine/__pycache__/
