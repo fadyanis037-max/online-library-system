@@ -114,10 +114,10 @@ def main():
         else:
             login_as = st.selectbox("Login as", ["user", "admin"], index=0)
             if login_as == "admin":
-                username = st.text_input("Username", value=ADMIN_USERNAME, disabled=True)
+                username = st.text_input("Username", value=ADMIN_USERNAME, disabled=True, autocomplete="off")
             else:
-                username = st.text_input("Username", value=USER_USERNAME, disabled=True)
-            password = st.text_input("Password", type="password")
+                username = st.text_input("Username", value=USER_USERNAME, disabled=True, autocomplete="off")
+            password = st.text_input("Password", type="password", autocomplete="new-password")
             if st.button("Sign in"):
                 if not username.strip():
                     st.warning("Please enter a username")
@@ -273,7 +273,7 @@ def main():
             
             # Auto-summarize when book is selected
             summary_key = f"auto_summary_{selected_id}"
-            if summary_key not in st.session_state:
+            if summary_key not in st.session_state and st.session_state.get("auto_summarize_on_select"):
                 with st.spinner("Generating summary with AI..."):
                     try:
                         res = summarize_book(selected_id)
