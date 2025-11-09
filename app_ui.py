@@ -130,7 +130,7 @@ def main():
             with st.expander(f"{b['title']} — {b['author']} ({b.get('genre') or 'Unknown'})"):
                 st.caption(b.get('created_at', ''))
                 st.write(b.get('description') or "No description.")
-                c1, c2, c3 = st.columns(3)
+                c1, c2 = st.columns(2)
                 with c1:
                     if st.button("Summarize", key=f"sum-{b['id']}"):
                         with st.spinner("Summarizing with BART..."):
@@ -149,14 +149,6 @@ def main():
                                 st.success("Done")
                             except Exception as e:
                                 st.error(f"Failed: {e}")
-                with c3:
-                    if st.button("Delete", key=f"del-{b['id']}"):
-                        try:
-                            delete_book(b['id'])
-                            st.warning("Book deleted")
-                            st.session_state["refresh_counter"] = st.session_state.get("refresh_counter", 0) + 1
-                        except Exception as e:
-                            st.error(f"Failed: {e}")
 
                 # Show results if present
                 if (s := st.session_state.get(f"summary-{b['id']}")):

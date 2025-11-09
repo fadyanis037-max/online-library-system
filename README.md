@@ -71,7 +71,7 @@ Seed the database (optional, recommended; run in a new shell if backend is runni
 python -m backend.seed_data
 ```
 
-### 4) Run the Streamlit UI
+### 4) Run the Streamlit UI in another terminal(with activatied venv)
 
 ```powershell
 streamlit run app_ui.py
@@ -87,7 +87,8 @@ streamlit run app_ui.py
 ### Freeing occupied ports (optional)
 - Check and kill processes on ports 5000/8501 if needed:
 
-```powershell
+## Open New shell
+```powershell 
 Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 Get-NetTCPConnection -LocalPort 8501 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 ```
@@ -111,6 +112,7 @@ Get-NetTCPConnection -LocalPort 8501 -ErrorAction SilentlyContinue | ForEach-Obj
 - Results are ranked by relevance score
 
 ### Auto-Summarization
+- summarizing feature may take 3 mins to see the result of the book as it's a large model
 - When a user selects a book, the system automatically generates a summary using BART
 - Summaries are cached to avoid regeneration on subsequent views
 - Provides a quick overview of the book's content
