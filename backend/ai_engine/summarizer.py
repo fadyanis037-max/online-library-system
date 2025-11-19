@@ -32,6 +32,7 @@ def summarize_text(text: str, max_length: int = 130, min_length: int = 30) -> Op
         max_length=max_length,
         min_length=min_length,
         do_sample=False,
+        clean_up_tokenization_spaces=True,
     )
     if not result:
         return None

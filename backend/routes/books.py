@@ -8,13 +8,14 @@ from backend.ai_engine.recommender import top_k_similar
 books_bp = Blueprint('books', __name__)
 
 
-def serialize_book(book: Book):
+def serialize_book(book: Book, include_content: bool = False):
     return {
         "id": book.id,
         "title": book.title,
         "author": book.author,
         "genre": book.genre,
         "description": book.description,
+        **({"content": book.content} if include_content else {}),
         "created_at": book.created_at.isoformat() if book.created_at else None,
     }
 
@@ -40,7 +41,7 @@ def list_books():
 @books_bp.get('/<int:book_id>')
 def get_book(book_id: int):
     book = Book.query.get_or_404(book_id)
-    return jsonify(serialize_book(book))
+    return jsonify(serialize_book(book, include_content=True))
 
 
 @books_bp.post('/')
@@ -59,7 +60,7 @@ def create_book():
     )
     db.session.add(book)
     db.session.commit()
-    return jsonify(serialize_book(book)), 201
+    return jsonify(serialize_book(book, include_content=True)), 201
 
 
 @books_bp.put('/<int:book_id>')
@@ -70,7 +71,7 @@ def update_book(book_id: int):
         if field in data:
             setattr(book, field, data[field])
     db.session.commit()
-    return jsonify(serialize_book(book))
+    return jsonify(serialize_book(book, include_content=True))
 
 
 @books_bp.delete('/<int:book_id>')
@@ -84,15 +85,20 @@ def delete_book(book_id: int):
 @books_bp.post('/<int:book_id>/summarize')
 def summarize_book(book_id: int):
     book = Book.query.get_or_404(book_id)
-    source = book.content or book.description
+    source = (book.content or '').strip()
     if not source:
-        return jsonify({"error": "No content or description to summarize"}), 400
+        return jsonify({"error": "No content available to summarize"}), 400
     params = request.get_json(silent=True) or {}
     max_length = int(params.get('max_length', 130))
     min_length = int(params.get('min_length', 30))
     summary = summarize_text(source, max_length=max_length, min_length=min_length)
     if not summary:
         return jsonify({"error": "Summarization failed"}), 500
+
+    # Persist the summary so future views load quickly
+    book.description = summary
+    db.session.commit()
+
     return jsonify({"book_id": book_id, "summary": summary})
 
 
