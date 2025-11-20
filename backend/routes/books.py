@@ -95,10 +95,6 @@ def summarize_book(book_id: int):
     if not summary:
         return jsonify({"error": "Summarization failed"}), 500
 
-    # Persist the summary so future views load quickly
-    book.description = summary
-    db.session.commit()
-
     return jsonify({"book_id": book_id, "summary": summary})
 
 
