@@ -1,6 +1,6 @@
 # AI-Powered Online Library System
 
-An end-to-end Python project featuring a Flask backend with SQLite, AI features (BART summarization and Sentence-Transformer recommendations), and a Streamlit frontend.
+End-to-end AI-powered library: Flask + SQLite backend, BART summaries, Sentence Transformer recommendations, Streamlit UI.
 
 ## Features
 - Flask REST API with CRUD for books
