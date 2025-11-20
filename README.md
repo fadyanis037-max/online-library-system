@@ -103,9 +103,6 @@ Get-NetTCPConnection -LocalPort 8501 -ErrorAction SilentlyContinue | ForEach-Obj
   - Username: `user`
   - Password: value of `USER_PASSWORD` (default: `1234`)
 
-Change passwords via environment variables if you want before launching the UI:
-- PowerShell example: `$env:USER_PASSWORD = "1234"; $env:ADMIN_PASSWORD = "1234"; streamlit run app_ui.py`
-
 ## API Overview(optional, try the UI is better)
 
 - `GET /api/books/` — list books, optional `?q=search`
@@ -132,7 +129,6 @@ Change passwords via environment variables if you want before launching the UI:
 
 ## Notes
 - For recommendations, book text comes from `description` + `content`.
-- Summarization prefers `content`, falls back to `description`.
 - On first run, model weights are downloaded during backend startup, so expect a longer boot time rather than a slow first request.
 - Models download on first use. The summarizer preloads in the background after startup; the recommender is initialized at startup for snappy recommendations.
 
